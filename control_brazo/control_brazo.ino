@@ -27,19 +27,19 @@ system_ev_t get_event() {
 
 // Configuración de Hardware
 button_t buttons[5] = {
-    {2, EV_BTN_V1_PRESSED,   EV_BTN_V1_RELEASED,   ST_BTN_RELEASED, HIGH, 0},
-    {3, EV_BTN_V2_PRESSED,   EV_BTN_V2_RELEASED,   ST_BTN_RELEASED, HIGH, 0},
-    {4, EV_BTN_V3_PRESSED,   EV_BTN_V3_RELEASED,   ST_BTN_RELEASED, HIGH, 0},
-    {5, EV_BTN_V4_PRESSED,   EV_BTN_V4_RELEASED,   ST_BTN_RELEASED, HIGH, 0},
-    {6, EV_BTN_PUMP_PRESSED, EV_BTN_PUMP_RELEASED, ST_BTN_RELEASED, HIGH, 0}
+    {8, EV_BTN_V1_PRESS,   EV_BTN_V1_IDLE,   ST_BTN_IDLE, HIGH, 0},
+    {9, EV_BTN_V2_PRESS,   EV_BTN_V2_IDLE,   ST_BTN_IDLE, HIGH, 0},
+    {10, EV_BTN_V3_PRESS,   EV_BTN_V3_IDLE,   ST_BTN_IDLE, HIGH, 0},
+    {11, EV_BTN_V4_PRESS,   EV_BTN_V4_IDLE,   ST_BTN_IDLE, HIGH, 0},
+    {12, EV_BTN_PUMP_PRESS, EV_BTN_PUMP_IDLE, ST_BTN_IDLE, HIGH, 0}
 };
 
-actuator_t actuators[5] = {
-    {7,  ST_ACT_OFF, EV_ACT_NONE}, // Válvula 1
-    {8,  ST_ACT_OFF, EV_ACT_NONE}, // Válvula 2
-    {9,  ST_ACT_OFF, EV_ACT_NONE}, // Válvula 3
-    {10, ST_ACT_OFF, EV_ACT_NONE}, // Válvula 4
-    {11, ST_ACT_OFF, EV_ACT_NONE}  // Bomba
+act_t actuators[5] = { // Corregido: actuator_t por act_t
+    {3,  ST_ACT_OFF, EV_ACT_NONE}, // Válvula 1
+    {4,  ST_ACT_OFF, EV_ACT_NONE}, // Válvula 2
+    {5,  ST_ACT_OFF, EV_ACT_NONE}, // Válvula 3
+    {6, ST_ACT_OFF, EV_ACT_NONE}, // Válvula 4
+    {7, ST_ACT_OFF, EV_ACT_NONE}  // Bomba
 };
 
 void setup() {
@@ -63,15 +63,14 @@ void task_button_update() {
         
         // Evaluación una vez superado el tiempo de debounce
         if ((now - buttons[i].last_debounce) > DEBOUNCE_MS) {
-            // Transición a PRESIONADO
-            if (reading == LOW && buttons[i].state == ST_BTN_RELEASED) {
-                buttons[i].state = ST_BTN_PRESSED;
-                put_event(buttons[i].ev_pressed);
+            if (reading == LOW && buttons[i].state == ST_BTN_IDLE) {
+                buttons[i].state = ST_BTN_PRESS;
+                put_event(buttons[i].ev_press);
             } 
-            // Transición a SOLTADO
-            else if (reading == HIGH && buttons[i].state == ST_BTN_PRESSED) {
-                buttons[i].state = ST_BTN_RELEASED;
-                put_event(buttons[i].ev_released);
+            // Corregido: ST_BTN_PRESSED por ST_BTN_PRESS
+            else if (reading == HIGH && buttons[i].state == ST_BTN_PRESS) {
+                buttons[i].state = ST_BTN_IDLE;
+                put_event(buttons[i].ev_idle); // Corregido: ev_off por ev_idle
             }
         }
         buttons[i].last_reading = reading;
@@ -83,20 +82,20 @@ void task_system_update() {
     system_ev_t ev = get_event();
     if (ev != EV_NONE) {
         int act_index = -1;
-        actuator_ev_t act_ev = EV_ACT_NONE;
+        act_ev_t act_ev = EV_ACT_NONE; // Corregido: actuator_ev_t por act_ev_t
 
-        // Decodificación de eventos y asignación al actuador correspondiente
+        // Se agregaron los casos IDLE para poder apagar los actuadores
         switch (ev) {
-            case EV_BTN_V1_PRESSED:    act_index = 0; act_ev = EV_ACT_ON;  break;
-            case EV_BTN_V1_RELEASED:   act_index = 0; act_ev = EV_ACT_OFF; break;
-            case EV_BTN_V2_PRESSED:    act_index = 1; act_ev = EV_ACT_ON;  break;
-            case EV_BTN_V2_RELEASED:   act_index = 1; act_ev = EV_ACT_OFF; break;
-            case EV_BTN_V3_PRESSED:    act_index = 2; act_ev = EV_ACT_ON;  break;
-            case EV_BTN_V3_RELEASED:   act_index = 2; act_ev = EV_ACT_OFF; break;
-            case EV_BTN_V4_PRESSED:    act_index = 3; act_ev = EV_ACT_ON;  break;
-            case EV_BTN_V4_RELEASED:   act_index = 3; act_ev = EV_ACT_OFF; break;
-            case EV_BTN_PUMP_PRESSED:  act_index = 4; act_ev = EV_ACT_ON;  break;
-            case EV_BTN_PUMP_RELEASED: act_index = 4; act_ev = EV_ACT_OFF; break;
+            case EV_BTN_V1_PRESS:   act_index = 0; act_ev = EV_ACT_ON;  break;
+            case EV_BTN_V1_IDLE:    act_index = 0; act_ev = EV_ACT_OFF; break;
+            case EV_BTN_V2_PRESS:   act_index = 1; act_ev = EV_ACT_ON;  break;
+            case EV_BTN_V2_IDLE:    act_index = 1; act_ev = EV_ACT_OFF; break;
+            case EV_BTN_V3_PRESS:   act_index = 2; act_ev = EV_ACT_ON;  break;
+            case EV_BTN_V3_IDLE:    act_index = 2; act_ev = EV_ACT_OFF; break;
+            case EV_BTN_V4_PRESS:   act_index = 3; act_ev = EV_ACT_ON;  break;
+            case EV_BTN_V4_IDLE:    act_index = 3; act_ev = EV_ACT_OFF; break;
+            case EV_BTN_PUMP_PRESS: act_index = 4; act_ev = EV_ACT_ON;  break;
+            case EV_BTN_PUMP_IDLE:  act_index = 4; act_ev = EV_ACT_OFF; break;
             default: break;
         }
 
@@ -117,7 +116,7 @@ void task_actuator_update() {
                     actuators[i].state = ST_ACT_ON;
                 }
                 break;
-                
+
             case ST_ACT_ON:
                 if (actuators[i].event == EV_ACT_OFF) {
                     digitalWrite(actuators[i].pin, RELAY_OFF);
